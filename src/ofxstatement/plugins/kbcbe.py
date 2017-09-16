@@ -5,7 +5,7 @@ from ofxstatement.exceptions import ParseError
 import csv
 
 
-LINELENGTH = 10
+LINELENGTH = 18
 HEADER_START = "Rekeningnummer"
 
 class KbcBePlugin(Plugin):
