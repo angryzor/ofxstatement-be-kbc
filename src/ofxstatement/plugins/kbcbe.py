@@ -1,8 +1,9 @@
 from ofxstatement.plugin import Plugin
 from ofxstatement.parser import CsvStatementParser
-from ofxstatement.statement import StatementLine
+from ofxstatement.statement import StatementLine, BankAccount
 from ofxstatement.exceptions import ParseError
 import csv
+import re
 
 
 LINELENGTH = 18
@@ -26,6 +27,7 @@ class KbcBeParser(CsvStatementParser):
         'memo': 6,
         'date': 5,
         'amount': 8,
+        'payee': 14,
     }
 
     line_nr = 0
@@ -38,7 +40,7 @@ class KbcBeParser(CsvStatementParser):
     def split_records(self):
         """Return iterable object consisting of a line per transaction
         """
-        return csv.reader(self.fin, delimiter=';')
+        return csv.reader(self.fin, delimiter=';', skipinitialspace=True)
 
     def parse_record(self, line):
         """Parse given transaction line and return StatementLine object
@@ -72,7 +74,30 @@ class KbcBeParser(CsvStatementParser):
         else:
             self.statement.currency = line[3]
 
-
         stmt_ln = super(KbcBeParser, self).parse_record(line)
+
+        if line[12] != None and line[12] != '':
+            stmt_ln.bank_account_to = BankAccount('', line[12])
+        elif line[6].startswith('AUTOMATISCH SPAREN'):
+            payee_match = re.match('AUTOMATISCH SPAREN\s+\d\d\-\d\d\s+(?:NAAR|VAN) (\w\w\d\d(?: \d{4}){3})', line[6])
+            if payee_match == None:
+                raise ParseError(self.line_nr,
+                                 'Cannot parse savings info. (' + line[6] + ')')
+            stmt_ln.bank_account_to = BankAccount('', payee_match.group(1))
+
+
+        if stmt_ln.payee == None or stmt_ln.payee == '':
+            if line[6].startswith('BETALING AANKOPEN VIA '):
+                payee_match = re.match('BETALING AANKOPEN VIA (?:.+), (.+) MET KBC\-BANKKAART', line[6])
+                if payee_match == None:
+                    raise ParseError(self.line_nr,
+                                    'Cannot parse maestro/bancontact transaction info. (' + line[6] + ')')
+                stmt_ln.payee = payee_match.group(1)
+            elif line[6].startswith('AUTOMATISCH SPAREN'):
+                payee_match = re.match('AUTOMATISCH SPAREN\s+\d\d\-\d\d\s+(?:NAAR|VAN) (\w\w\d\d(?: \d{4}){3})', line[6])
+                if payee_match == None:
+                    raise ParseError(self.line_nr,
+                                    'Cannot parse savings info. (' + line[6] + ')')
+                stmt_ln.payee = payee_match.group(1)
 
         return stmt_ln
