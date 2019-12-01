@@ -88,7 +88,7 @@ class KbcBeParser(CsvStatementParser):
 
         if stmt_ln.payee == None or stmt_ln.payee == '':
             if line[6].startswith('BETALING AANKOPEN VIA '):
-                payee_match = re.match('BETALING AANKOPEN VIA (?:.+), (.+) MET KBC\-BANKKAART', line[6])
+                payee_match = re.match('BETALING AANKOPEN VIA (?:.+), (.+) MET KBC\-(?:BANK|DEBET)KAART', line[6])
                 if payee_match == None:
                     raise ParseError(self.line_nr,
                                     'Cannot parse maestro/bancontact transaction info. (' + line[6] + ')')
